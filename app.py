@@ -1,13 +1,29 @@
 from flask import Flask, request, jsonify, render_template, url_for, redirect, make_response
 import jwt
 import datetime
+from flask_mysqldb import MySQL
+import MySQLdb.cursors
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = '14a0458f42584319bdeed320286f6dd5'
+app.config['MYSQL_HOST'] = 'localhost'
+app.config['MYSQL_USER'] = 'root'
+app.config['MYSQL_PASSWORD'] = 'root'
+app.config['MYSQL_DB'] = 'flask-midterm'
+
+mysql = MySQL(app)
 
 @app.route('/')
 def hello_world():
     return 'Hello, World!'
+
+@app.route('/get-users', methods=['GET'])
+def get_users():
+    cur = mysql.connection.cursor()
+    cur.execute("SELECT * FROM test")
+    data = cur.fetchall()
+    cur.close()
+    return jsonify({'users':data})
 
 @app.route('/login', methods=['POST'])
 def login():
