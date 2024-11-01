@@ -62,10 +62,7 @@ def login():
 
     return jsonify({'message': 'Invalid credentials!'}), 401
 
-@app.route('/update-book', methods=['PUT'])
-
 @app.route('/add-book', methods=['POST'])
-@protected_route
 def add_book():
     cur = mysql.connection.cursor()
     data = request.get_json()
@@ -73,6 +70,43 @@ def add_book():
     mysql.connection.commit()
     cur.close()
     return jsonify({'message': 'Book added!', 'data': data})
+
+@app.route('/get-books', methods=['GET'])
+def get_books():
+    cur = mysql.connection.cursor()
+    cur.execute("SELECT * FROM books")
+    data = cur.fetchall()
+    cur.close()
+    return jsonify({'books':data})
+
+@app.route('/get-book/<int:id>', methods=['GET'])
+def get_book(id):
+    cur = mysql.connection.cursor()
+    cur.execute("SELECT * FROM books WHERE id = %s", (id,))
+    data = cur.fetchall()
+    cur.close()
+    return jsonify({'book':data})
+
+@app.route('/update-book/<int:id>', methods=['PUT'])
+@protected_route
+def update_book(id):
+    cur=mysql.connection.cursor()
+    data = request.get_json()
+    cur.execute("UPDATE books SET name = %s, description = %s WHERE id = %s", (data['name'], data['description'], id))
+    mysql.connection.commit()
+    cur.close()
+    return jsonify({'message': 'Book updated!', 'data': data})
+
+@app.route('/delete-book/<int:id>', methods=['DELETE'])
+@protected_route
+def delete_book(id):
+    cur = mysql.connection.cursor()
+    cur.execute("DELETE FROM books WHERE id = %s", (id,))
+    mysql.connection.commit()
+    cur.close()
+    return jsonify({'message': 'Book deleted!'})
+
+
 
 
 
