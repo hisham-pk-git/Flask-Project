@@ -4,6 +4,8 @@ import datetime
 from flask_mysqldb import MySQL
 import MySQLdb.cursors
 from functools import wraps
+import datetime
+import os
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = '14a0458f42584319bdeed320286f6dd5'
@@ -13,6 +15,17 @@ app.config['MYSQL_PASSWORD'] = 'root'
 app.config['MYSQL_DB'] = 'flask-midterm'
 
 mysql = MySQL(app)
+
+# Configurations
+UPLOAD_FOLDER = 'uploads'
+app.config['UPLOAD_FOLDER'] = 'uploads'
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # Limit file size to 16MB
+ALLOWED_EXTENSIONS = {'pdf', 'txt', 'jpg', 'jpeg', 'png'}
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+# Utility function to check allowed file extensions
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 @app.route('/')
 def hello_world():
@@ -85,12 +98,22 @@ def get_book(id):
     cur.execute("SELECT * FROM books WHERE id = %s", (id,))
     data = cur.fetchall()
     cur.close()
+    if not data:
+        # Return 404 error if no book is found
+        return jsonify({"error": f"Book with ID {id} not found"}), 404
     return jsonify({'book':data})
 
 @app.route('/update-book/<int:id>', methods=['PUT'])
 @protected_route
 def update_book(id):
     cur=mysql.connection.cursor()
+    # First, check if the book with the given ID exists
+    cur.execute("SELECT * FROM books WHERE id = %s", (id,))
+    existing_book = cur.fetchall()
+    
+    if not existing_book:
+        cur.close()
+        return jsonify({"error": f"Book with ID {id} not found"}), 404
     data = request.get_json()
     cur.execute("UPDATE books SET name = %s, description = %s WHERE id = %s", (data['name'], data['description'], id))
     mysql.connection.commit()
@@ -101,12 +124,55 @@ def update_book(id):
 @protected_route
 def delete_book(id):
     cur = mysql.connection.cursor()
+    cur.execute("SELECT * FROM books WHERE id = %s", (id,))
+    existing_book = cur.fetchall()
+    
+    if not existing_book:
+        cur.close()
+        return jsonify({"error": f"Book with ID {id} not found"}), 404
     cur.execute("DELETE FROM books WHERE id = %s", (id,))
     mysql.connection.commit()
     cur.close()
     return jsonify({'message': 'Book deleted!'})
 
+# Upload endpoint
+@app.route('/upload-file', methods=['POST'])
+def upload_file():
+    # Check if the request contains the file part
+    if 'file' not in request.files:
+        return jsonify({"error": "No file part"}), 400
 
+    file = request.files['file']
+
+    # Check if the file has a valid filename
+    if file.filename == '':
+        return jsonify({"error": "No selected file"}), 400
+
+    # Check if the file type is allowed
+    if file and allowed_file(file.filename):
+        filename = file.filename
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        file.save(filepath)
+        try:
+            cur = mysql.connection.cursor()
+            cur.execute(
+                "INSERT INTO uploaded_files (filepath, uploaded_time) VALUES (%s, %s)",
+                (filepath, datetime.datetime.now())
+            )
+            mysql.connection.commit()
+            cur.close()
+        except Exception as e:
+            mysql.connection.rollback()
+            return jsonify({"error": "Failed to save file info in the database", "details": str(e)}), 500
+
+        return jsonify({"message": "File uploaded and info saved successfully!"}), 201
+
+    return jsonify({"error": "File type not allowed"}), 400
+
+# Error handler for files that exceed the size limit
+@app.errorhandler(413)
+def request_entity_too_large(error):
+    return jsonify({"error": "File is too large. Maximum allowed size is 16 MB."}), 413
 
 
 
