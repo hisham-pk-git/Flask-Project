@@ -1,13 +1,14 @@
-from flask import Flask, request, jsonify, render_template, url_for, redirect, make_response
+from flask import Flask, request, jsonify
 import jwt
 import datetime
 from flask_mysqldb import MySQL
-import MySQLdb.cursors
 from functools import wraps
 import datetime
 import os
 
 app = Flask(__name__)
+
+#Database connection Configurations
 app.config['SECRET_KEY'] = '14a0458f42584319bdeed320286f6dd5'
 app.config['MYSQL_HOST'] = 'localhost'
 app.config['MYSQL_USER'] = 'root'
@@ -16,7 +17,7 @@ app.config['MYSQL_DB'] = 'flask-midterm'
 
 mysql = MySQL(app)
 
-# Configurations
+# File Uppload Configurations
 UPLOAD_FOLDER = 'uploads'
 app.config['UPLOAD_FOLDER'] = 'uploads'
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # Limit file size to 16MB
@@ -27,19 +28,18 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-@app.route('/')
-def hello_world():
-    return 'Hello, World!'
-
+# Protected route decorator to check if the request has a valid token and the role is admin
 def protected_route(f):
     @wraps(f)
     def decorated(*args, **kwargs):
+        # Check if the request has a token in the header
         token = request.headers.get('x-access-token')
         
         if not token:
             return jsonify({'message': 'Token is missing!'}), 403
         
         try:
+            # Decode the token and check if the role is admin
             data = jwt.decode(token, app.config['SECRET_KEY'], algorithms=['HS256'])
             if data.get('role') != 'admin':
                 return jsonify({'message': 'Admin access required!'}), 403
@@ -52,19 +52,16 @@ def protected_route(f):
     
     return decorated
 
-@app.route('/get-users', methods=['GET'])
-def get_users():
-    cur = mysql.connection.cursor()
-    cur.execute("SELECT * FROM test")
-    data = cur.fetchall()
-    cur.close()
-    return jsonify({'users':data})
-
+#Login endpoint to generate token for the admin
 @app.route('/login', methods=['POST'])
 def login():
     auth = request.get_json()
-
-    if auth and auth.get('username') == 'admin' and auth.get('password') == 'password':
+    # Check if the username and password are correct for the admin against the database
+    curr = mysql.connection.cursor()
+    if auth:
+        curr.execute("SELECT * FROM users WHERE username = %s AND password = %s", (auth['username'], auth['password']))
+    
+    if curr.rowcount > 0:
         token = jwt.encode({
             'username': auth['username'],
             'role': 'admin',
@@ -75,6 +72,7 @@ def login():
 
     return jsonify({'message': 'Invalid credentials!'}), 401
 
+#Public endpoint: Add book endpoint to add a book to the database
 @app.route('/add-book', methods=['POST'])
 def add_book():
     cur = mysql.connection.cursor()
@@ -84,6 +82,7 @@ def add_book():
     cur.close()
     return jsonify({'message': 'Book added!', 'data': data})
 
+#Public endpoint: Get books endpoint to get all books from the database
 @app.route('/get-books', methods=['GET'])
 def get_books():
     cur = mysql.connection.cursor()
@@ -92,6 +91,7 @@ def get_books():
     cur.close()
     return jsonify({'books':data})
 
+#Public endpoint: Get book endpoint to get a book by ID from the database
 @app.route('/get-book/<int:id>', methods=['GET'])
 def get_book(id):
     cur = mysql.connection.cursor()
@@ -103,6 +103,7 @@ def get_book(id):
         return jsonify({"error": f"Book with ID {id} not found"}), 404
     return jsonify({'book':data})
 
+#Protected endpoint: Update book endpoint to update a book by ID in the database. Only the admin can update the book details
 @app.route('/update-book/<int:id>', methods=['PUT'])
 @protected_route
 def update_book(id):
@@ -120,6 +121,7 @@ def update_book(id):
     cur.close()
     return jsonify({'message': 'Book updated!', 'data': data})
 
+#Protected endpoint: Delete book endpoint to delete a book by ID from the database. Only the admin can delete the book
 @app.route('/delete-book/<int:id>', methods=['DELETE'])
 @protected_route
 def delete_book(id):
@@ -173,10 +175,6 @@ def upload_file():
 @app.errorhandler(413)
 def request_entity_too_large(error):
     return jsonify({"error": "File is too large. Maximum allowed size is 16 MB."}), 413
-
-
-
-
 
 if __name__ == '__main__':
     app.run(debug=True)
