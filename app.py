@@ -5,8 +5,17 @@ from flask_mysqldb import MySQL
 from functools import wraps
 import datetime
 import os
+from error_handlers import handle_400, handle_401, handle_403, handle_404, handle_413, handle_500
 
 app = Flask(__name__)
+
+# Register error handlers
+app.register_error_handler(400, lambda e: handle_400(e))
+app.register_error_handler(401, lambda e: handle_401(e))
+app.register_error_handler(403, lambda e: handle_403(e))
+app.register_error_handler(404, lambda e: handle_404(e))
+app.register_error_handler(413, lambda e: handle_413(e))
+app.register_error_handler(500, lambda e: handle_500(e))
 
 #Database connection Configurations
 app.config['SECRET_KEY'] = '14a0458f42584319bdeed320286f6dd5'
@@ -36,17 +45,17 @@ def protected_route(f):
         token = request.headers.get('x-access-token')
         
         if not token:
-            return jsonify({'message': 'Token is missing!'}), 403
+            return handle_403(error_msg="Token is missing!")
         
         try:
             # Decode the token and check if the role is admin
             data = jwt.decode(token, app.config['SECRET_KEY'], algorithms=['HS256'])
             if data.get('role') != 'admin':
-                return jsonify({'message': 'Admin access required!'}), 403
+                return handle_403(error_msg="Admin access required!")
         except jwt.ExpiredSignatureError:
-            return jsonify({'message': 'Token has expired!'}), 401
+            return handle_401(error_msg="Token has expired!")
         except jwt.InvalidTokenError:
-            return jsonify({'message': 'Invalid token!'}), 401
+            return handle_401(error_msg="Invalid token!")
         
         return f(*args, **kwargs)
     
@@ -70,7 +79,7 @@ def login():
 
         return jsonify({'token': token})
 
-    return jsonify({'message': 'Invalid credentials!'}), 401
+    return handle_401(error_msg="Invalid credentials!")
 
 #Public endpoint: Add book endpoint to add a book to the database
 @app.route('/add-book', methods=['POST'])
@@ -100,7 +109,7 @@ def get_book(id):
     cur.close()
     if not data:
         # Return 404 error if no book is found
-        return jsonify({"error": f"Book with ID {id} not found"}), 404
+        return handle_404(error_msg=f"Book with ID {id} not found")
     return jsonify({'book':data})
 
 #Protected endpoint: Update book endpoint to update a book by ID in the database. Only the admin can update the book details
@@ -114,7 +123,7 @@ def update_book(id):
     
     if not existing_book:
         cur.close()
-        return jsonify({"error": f"Book with ID {id} not found"}), 404
+        return handle_404(error_msg=f"Book with ID {id} not found")
     data = request.get_json()
     cur.execute("UPDATE books SET name = %s, description = %s WHERE id = %s", (data['name'], data['description'], id))
     mysql.connection.commit()
@@ -131,7 +140,7 @@ def delete_book(id):
     
     if not existing_book:
         cur.close()
-        return jsonify({"error": f"Book with ID {id} not found"}), 404
+        return handle_404(error_msg=f"Book with ID {id} not found")
     cur.execute("DELETE FROM books WHERE id = %s", (id,))
     mysql.connection.commit()
     cur.close()
@@ -142,13 +151,13 @@ def delete_book(id):
 def upload_file():
     # Check if the request contains the file part
     if 'file' not in request.files:
-        return jsonify({"error": "No file part"}), 400
+        return handle_400(error_msg="No file part")
 
     file = request.files['file']
 
     # Check if the file has a valid filename
     if file.filename == '':
-        return jsonify({"error": "No selected file"}), 400
+        return handle_400(error_msg="No selected file")
 
     # Check if the file type is allowed
     if file and allowed_file(file.filename):
@@ -165,16 +174,10 @@ def upload_file():
             cur.close()
         except Exception as e:
             mysql.connection.rollback()
-            return jsonify({"error": "Failed to save file info in the database", "details": str(e)}), 500
+            return handle_500(error_msg=f"Failed to save file info in the database. Details: {str(e)}")
 
         return jsonify({"message": "File uploaded and info saved successfully!"}), 201
-
-    return jsonify({"error": "File type not allowed"}), 400
-
-# Error handler for files that exceed the size limit
-@app.errorhandler(413)
-def request_entity_too_large(error):
-    return jsonify({"error": "File is too large. Maximum allowed size is 16 MB."}), 413
+    return handle_400(error_msg="File type not allowed")
 
 if __name__ == '__main__':
     app.run(debug=True)
