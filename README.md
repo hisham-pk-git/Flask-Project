@@ -3,8 +3,8 @@
 ## CPSC 449 Web Backend Engineering 
 
 ## Authors: 
-         Kiran Sukumar, kiransukumar@csu.fullerton.edu
-         Hisham Panamthodi Kajahussain, hisham.pk@csu.fullerton.edu
+         **Kiran Sukumar, kiransukumar@csu.fullerton.edu
+         Hisham Panamthodi Kajahussain, hisham.pk@csu.fullerton.edu**
 
 ## Installation and setup:
 Instal the packages listed in requirements.txt file in the terminal using  
@@ -28,9 +28,9 @@ app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # Limit file size to 16MB
 ALLOWED_EXTENSIONS = {'pdf', 'txt', 'jpg', 'jpeg', 'png'}
 ```
 ## Run the application:
-In the terminal, run the following command: 
+In the terminal, run the following command. The application will run on localhost port 5000
 > python app.py
-The application will run on localhost port 5000
+
 
 ## Endpoints:
 ![image](https://github.com/user-attachments/assets/8b022f7b-fb2d-400f-a52c-9abfadf9e16d)
