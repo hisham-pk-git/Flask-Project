@@ -35,4 +35,7 @@ In the terminal, run the following command. The application will run on localhos
 ## Endpoints:
 ![image](https://github.com/user-attachments/assets/8b022f7b-fb2d-400f-a52c-9abfadf9e16d)
 
+## Video Demonstration:
+[Demo](https://youtu.be/URPmlMTgjgE)
+
 
