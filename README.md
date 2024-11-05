@@ -2,8 +2,8 @@
 
 ## CPSC 449 Web Backend Engineering 
 
-## Authors: 
-         **Kiran Sukumar, kiransukumar@csu.fullerton.edu
+## Authors: **
+         Kiran Sukumar, kiransukumar@csu.fullerton.edu
          Hisham Panamthodi Kajahussain, hisham.pk@csu.fullerton.edu**
 
 ## Installation and setup:
