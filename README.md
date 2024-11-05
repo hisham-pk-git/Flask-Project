@@ -7,10 +7,7 @@
          Hisham Panamthodi Kajahussain, hisham.pk@csu.fullerton.edu
 
 ## Installation and setup:
-Instal the packages listed in requirements.txt file in the terminal using , 
-To install packages one by one:
-> pip install "package_name"
-To install together:
+Instal the packages listed in requirements.txt file in the terminal using
 > pip install -r /path/to/requirements.txt
 
 ## Database Configuration:
